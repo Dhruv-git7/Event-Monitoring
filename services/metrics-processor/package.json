@@ -1,0 +1,25 @@
+{
+  "name": "metrics-processor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.8.0",
+    "ioredis": "^5.4.1",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.12.0",
+    "uuid": "8.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/pg": "^8.11.6",
+    "@types/uuid": "^8.3.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  }
+}

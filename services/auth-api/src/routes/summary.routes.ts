@@ -1,0 +1,7 @@
+// FILE: services/auth-api/src/routes/summary.routes.ts
+import { FastifyInstance,FastifyRequest } from 'fastify'
+import { db } from '../db'
+function tenant(req:FastifyRequest){return (req as any).user.tenant_id}
+export default async function summaryRoutes(fastify:FastifyInstance){fastify.addHook('preHandler',(fastify as any).authenticate)
+ fastify.get('/summary',async(req,reply)=>{try{const r=await db.query(`WITH hc AS (SELECT status,COUNT(*)::int c FROM hosts WHERE tenant_id=$1 GROUP BY status), pc AS (SELECT COUNT(*)::int active_problems, COUNT(DISTINCT host_id)::int hosts_with_problems FROM problems WHERE tenant_id=$1 AND status IN ('active','acknowledged')) SELECT COALESCE((SELECT SUM(c) FROM hc),0)::int total_hosts, COALESCE((SELECT c FROM hc WHERE status='online'),0)::int online, COALESCE((SELECT c FROM hc WHERE status='offline'),0)::int offline, COALESCE((SELECT c FROM hc WHERE status='warning'),0)::int warning, COALESCE((SELECT c FROM hc WHERE status='critical'),0)::int critical, COALESCE((SELECT c FROM hc WHERE status='unknown'),0)::int unknown, COALESCE(pc.active_problems,0)::int active_problems, COALESCE(pc.hosts_with_problems,0)::int hosts_with_problems FROM pc`,[tenant(req)]);return r.rows[0]||{total_hosts:0,online:0,offline:0,warning:0,critical:0,unknown:0,active_problems:0,hosts_with_problems:0}}catch(e){req.log.error(e);return reply.code(500).send({error:'Failed to get summary'})}})
+}

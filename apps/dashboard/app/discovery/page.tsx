@@ -1,0 +1,3 @@
+// FILE: apps/dashboard/app/discovery/page.tsx
+import Layout from '../../components/Layout'
+export default function Discovery(){return <Layout title="Network Discovery" breadcrumbs={['Configuration','Discovery']}><section className="panel" style={{padding:18,maxWidth:760}}><h2 style={{marginTop:0}}>Coming Soon</h2><p className="muted">Network Discovery is planned for Phase 2 and will provide controlled enterprise auto-discovery workflows.</p><ul><li>Auto-discovery via SNMP</li><li>Ping sweep based host identification</li><li>Network topology mapping</li><li>Policy-based auto-registration</li></ul></section></Layout>}

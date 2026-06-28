@@ -1,0 +1,7 @@
+// FILE: apps/dashboard/hooks/useLiveHost.ts
+'use client'
+import { useEffect,useMemo,useState } from 'react'
+import { io, Socket } from 'socket.io-client'
+let socket:Socket|null=null
+function getSocket(){if(!socket)socket=io(process.env.NEXT_PUBLIC_WS_URL||'http://localhost:4001',{withCredentials:true,transports:['websocket','polling']});return socket}
+export default function useLiveHost(hostId:string){const[metrics,setMetrics]=useState<any>({});const[status,setStatus]=useState('unknown');const[problems,setProblems]=useState<any[]>([]);const[lastSeen,setLastSeen]=useState('');const[connected,setConnected]=useState(false);const s=useMemo(getSocket,[]);useEffect(()=>{const c=()=>{setConnected(true);s.emit('subscribe',hostId)};const d=()=>setConnected(false);const m=(e:any)=>{if(e.hostId===hostId){setMetrics(e.metrics);setLastSeen(e.timestamp)}};const hs=(e:any)=>{if(e.hostId===hostId)setStatus(e.status)};const po=(e:any)=>{if(e.problem?.host_id===hostId)setProblems(p=>[e.problem,...p])};const pr=(e:any)=>{if(e.hostId===hostId)setProblems(p=>p.filter(x=>x.id!==e.problemId))};s.on('connect',c);s.on('disconnect',d);s.on('metric_update',m);s.on('host_status',hs);s.on('problem_opened',po);s.on('problem_resolved',pr);if(s.connected)c();return()=>{s.emit('unsubscribe',hostId);s.off('connect',c);s.off('disconnect',d);s.off('metric_update',m);s.off('host_status',hs);s.off('problem_opened',po);s.off('problem_resolved',pr)}},[hostId,s]);return{metrics,status,problems,connected,lastSeen}}

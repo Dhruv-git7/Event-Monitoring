@@ -1,0 +1,5 @@
+// FILE: apps/dashboard/components/Layout.tsx
+'use client'
+import Sidebar from './Sidebar'
+import { useAuth } from './AuthProvider'
+export default function Layout({children,title,breadcrumbs=[],actions=[]}:{children:React.ReactNode;title:string;breadcrumbs?:string[];actions?:{label:string;onClick:()=>void;primary?:boolean}[]}){const{user,logout}=useAuth()||{};return <div><Sidebar/><main style={{marginLeft:220,minHeight:'100vh'}}><header style={{height:48,background:'#fff',borderBottom:'1px solid #dde1e7',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px'}}><div><span className="muted">{breadcrumbs.length?breadcrumbs.join(' > '):title}</span></div><div style={{display:'flex',alignItems:'center',gap:8}}>{actions.map(a=><button key={a.label} className={`btn ${a.primary?'btn-primary':''}`} onClick={a.onClick}>{a.label}</button>)}<span className="muted">{user?.email}</span><button className="btn" onClick={logout}>Logout</button></div></header><section style={{padding:16}}><h1 style={{fontSize:22,margin:'0 0 14px'}}>{title}</h1>{children}</section></main></div>}

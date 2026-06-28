@@ -1,0 +1,5 @@
+// FILE: apps/dashboard/components/HostCard.tsx
+import StatusBadge from './StatusBadge'
+import { statusColor } from '../lib/theme'
+import { timeAgo } from '../lib/format'
+export default function HostCard({host}:{host:any}){return <div className="panel" style={{borderLeft:`3px solid ${statusColor(host.status)}`,padding:10,minHeight:112}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}><b>{host.hostname}</b><StatusBadge status={host.status}/></div><div className="muted mono" style={{marginTop:6}}>{host.ip_address||'-'}</div><div className="muted" style={{fontSize:12}}>{host.os_type||'unknown'} • last seen {timeAgo(host.last_seen)}</div><div style={{marginTop:8}}>{(host.tags||[]).slice(0,3).map((t:string)=><span key={t} style={{background:'#f5f5f5',border:'1px solid #e0e0e0',borderRadius:3,padding:'1px 5px',fontSize:12,marginRight:4}}>{t}</span>)}{host.problem_count>0&&<span style={{float:'right',color:'#c62828',fontWeight:700}}>{host.problem_count} problems</span>}</div></div>}

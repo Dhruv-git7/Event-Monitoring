@@ -1,0 +1,2 @@
+// FILE: apps/dashboard/components/SparkLine.tsx
+export default function SparkLine({data,color='#1565c0',width=120,height=32}:{data:number[];color?:string;width?:number;height?:number}){const vals=data.filter(Number.isFinite);if(vals.length<2)return <svg width={width} height={height}/>;const min=Math.min(...vals),max=Math.max(...vals),span=max-min||1;const pts=vals.map((v,i)=>`${(i/(vals.length-1))*width},${height-((v-min)/span)*height}`).join(' ');return <svg width={width} height={height}><polyline points={pts} fill="none" stroke={color} strokeWidth="2"/></svg>}
