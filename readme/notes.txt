@@ -1,0 +1,616 @@
+SLIDE 1 — Title
+Good morning respected panel members, scientists, engineers, and mentors.
+
+My name is Dhruv Rathore, Roll Number 23052240, and I am a Computer Science and Engineering student from KIIT University, Bhubaneswar.
+
+During my summer internship at ISTRAC, Lucknow, ISRO, under the guidance of Shri Anant Madhukar, I worked on a project titled “Universal Real-Time Infrastructure Monitoring and Observability Platform.”
+
+In simple terms, this project is a monitoring system similar to Zabbix, where servers and machines can be monitored in real time through a web dashboard.
+
+The platform collects system metrics such as CPU, RAM, disk, network, uptime, services, and process information from monitored machines and shows their health status live on the dashboard.
+
+SLIDE 2 — About ISTRAC
+Before explaining the project, I would like to briefly mention the context of ISTRAC.
+
+ISTRAC stands for ISRO Telemetry, Tracking and Command Network. It supports ISRO missions through tracking, telemetry, and command operations.
+
+These operations depend on a large amount of technical infrastructure such as servers, communication systems, applications, networks, and monitoring tools.
+
+In such an environment, it is important to know whether systems are healthy, whether any service has stopped, or whether any machine is under heavy CPU, RAM, or disk load.
+
+That is where infrastructure monitoring becomes important. My project is related to this need for real-time visibility into technical infrastructure.
+
+SLIDE 3 — Problem Statement
+The problem I focused on is infrastructure visibility.
+
+In a technical environment, there are many different types of systems. Some machines may run Linux, some may run Windows, some may be virtual machines, some may be containers, and some may be network devices or application servers.
+
+If each system is checked manually or through separate tools, it becomes difficult to understand the complete health of the infrastructure.
+
+For example, one server may have high CPU usage, another may have low disk space, and another may have a stopped service. If there is no unified dashboard, these issues may be detected late.
+
+So the challenge was to build a system that can continuously collect metrics, detect abnormal conditions, and show everything in one place in real time.
+
+SLIDE 4 — Project Objective
+The objective of the project was to build a working infrastructure monitoring platform from scratch.
+
+The platform should collect system metrics from hosts using a monitoring agent. It should send those metrics to backend services, process them, store them, evaluate alert rules, and show live status on a dashboard.
+
+The project was inspired by tools like Zabbix, Nagios, Grafana, and Datadog Infrastructure Monitoring.
+
+The goal was not only to create a user interface, but to build the complete backend pipeline also: agent, API service, Kafka queue, metric processor, database storage, alert engine, WebSocket live delivery, and dashboard.
+
+So the final result is a full-stack distributed monitoring system.
+
+SLIDE 5 — Development Timeline
+The project was developed in two phases during the internship.
+
+In the first three weeks, I built a Universal Real-Time Event Ingestion Platform. This was inspired by Splunk and Elasticsearch. It could receive events, parse different formats, store them, and stream them live to the dashboard.
+
+This phase helped me build the distributed system foundation: microservices, Kafka, PostgreSQL, WebSocket, authentication, and dashboard integration.
+
+In the final three weeks, I pivoted the project toward infrastructure monitoring. I redesigned the database, built a monitoring agent, added metric processing, alert rules, problem management, and redesigned the dashboard into a Zabbix-style monitoring interface.
+
+This pivot was not a restart. It was an evolution of the first architecture into a more operationally useful system.
+
+SLIDE 6 — Phase 1 Summary
+Phase 1 was focused on universal event ingestion.
+
+The system could receive data through HTTP and Kafka. It could parse different data formats such as JSON, CSV, XML, Syslog, and Key-Value format.
+
+The main idea was that the system should not require a fixed schema in advance. It should be able to accept different types of events and normalize them.
+
+This phase also implemented persistent storage, authentication using JWT and API keys, and live dashboard updates using WebSocket.
+
+The most important outcome of Phase 1 was that it proved the architecture. It showed that data could move from source to backend to storage to dashboard in real time.
+
+That same architectural foundation was later reused for the monitoring platform.
+
+SLIDE 7 — Why the Pivot
+After Phase 1, I moved from log/event analytics to infrastructure monitoring.
+
+The reason was that infrastructure monitoring has a very direct operational use case. Instead of only receiving generic logs, the system could monitor actual machines and services.
+
+Monitoring requires a more structured model. We need concepts like hosts, host groups, metrics, alert rules, problems, services, and heartbeats.
+
+So the database schema and dashboard had to be redesigned.
+
+The earlier event pipeline helped because it already had the concepts of ingestion, processing, storage, and live delivery. I adapted those same ideas for metric monitoring.
+
+This shows the engineering process: first validate the distributed architecture, then specialize it for a stronger use case.
+
+SLIDE 8 — Final System Architecture
+This is the final architecture of the system.
+
+At the left side, we have the Monitoring Agent. This is a lightweight Node.js script that runs on the monitored machine. It collects CPU, RAM, disk, network, uptime, process, and service metrics.
+
+The agent sends this data to Agent API, which runs on port 4000. Agent API validates the agent key and publishes the metric payload to Kafka.
+
+Kafka acts as the message queue. It decouples data ingestion from processing.
+
+The Metrics Processor consumes messages from Kafka. It writes metrics to PostgreSQL and ClickHouse, evaluates alert rules, updates host status, updates service checks, and publishes live events to Redis.
+
+The WebSocket Gateway subscribes to Redis and sends live updates to the browser.
+
+Finally, the Next.js Dashboard displays host status, live gauges, charts, alert problems, and reports.
+
+So the complete flow is:
+
+Agent → Agent API → Kafka → Metrics Processor → PostgreSQL + ClickHouse + Redis → WebSocket Gateway → Dashboard
+
+SLIDE 9 — Technology Stack
+This slide shows the technologies used and why they were selected.
+
+Node.js 20 was used as the runtime because both the backend services and monitoring agent could be written in the same ecosystem.
+
+Fastify was used for REST APIs because it is lightweight and works well for service-based backend design.
+
+Kafka was used as the message queue because metric ingestion and processing should be separated. If processing is slow, the agent API can still accept data and Kafka can buffer the messages.
+
+PostgreSQL was used for relational data such as users, hosts, alert rules, problems, sessions, and API keys.
+
+ClickHouse was used for time-series metric storage because historical metric queries are better handled by a column-oriented database.
+
+Redis was used for PubSub so that processed metric updates could be pushed live to the WebSocket Gateway.
+
+Next.js was used for the dashboard, and Recharts was used for metric charts.
+
+SLIDE 10 — Microservices Design
+The system is divided into focused services.
+
+The first service is agent-api, running on port 4000. It receives agent registrations, heartbeats, and metric check-ins.
+
+The second service is auth-api, running on port 4002. It handles authentication and all dashboard REST APIs such as hosts, problems, alert rules, reports, and admin functions.
+
+The third service is metrics-processor. It is a Kafka consumer. It processes metric payloads, stores them, evaluates alert rules, and updates host status.
+
+The fourth service is ws-gateway, running on port 4001. It sends live updates to the dashboard through Socket.io.
+
+The fifth component is the monitoring agent, which runs on the monitored machine.
+
+This design keeps each service focused and makes the system easier to understand, test, and scale.
+
+SLIDE 11 — Database Design
+The project uses two types of databases.
+
+PostgreSQL is used for relational and operational data. It stores tenants, users, sessions, API keys, hosts, host groups, heartbeats, metric values, alert rules, problems, host services, and audit logs.
+
+Metric values are partitioned monthly in PostgreSQL because monitoring data grows continuously.
+
+ClickHouse is used for time-series analytics. It stores high-volume metric readings and supports hourly and daily rollups.
+
+The reason for using two databases is that monitoring systems have two different types of data.
+
+Current operational state, such as host status and problems, fits well in PostgreSQL. Historical metric analysis fits better in ClickHouse.
+
+So PostgreSQL is used for system state, and ClickHouse is used for metric history.
+
+SLIDE 12 — Monitoring Agent
+The monitoring agent is one of the most important parts of the project.
+
+It is a single JavaScript file written using only built-in Node.js modules. It has zero npm dependencies.
+
+It works on both Windows and Linux.
+
+For CPU usage, it samples os.cpus() twice with a short delay and calculates usage from idle time difference.
+
+For RAM, it uses os.totalmem() and os.freemem().
+
+For disk usage, it uses df -k / on Linux and wmic on Windows.
+
+For network usage, it reads /proc/net/dev on Linux and uses netstat -e on Windows.
+
+For service checks, it attempts TCP connections to configured ports like 80, 443, 5432, and 6379.
+
+The agent sends heartbeat messages every 10 seconds and full metric check-ins every 30 seconds.
+
+SLIDE 13 — Alert Engine
+The alert engine works using threshold rules.
+
+For example, an alert rule may say:
+
+CPU usage greater than 75 percent is warning, and greater than 90 percent is critical.
+
+When the Metrics Processor receives a metric value, it checks enabled alert rules for that host.
+
+If the value crosses the threshold, the system opens a problem.
+
+If the value returns to normal, the system automatically resolves the problem.
+
+The problem workflow has three states:
+
+active → acknowledged → resolved
+
+Active means the issue is currently present. Acknowledged means an operator has seen it. Resolved means the issue has cleared.
+
+This is similar to the trigger and problem concept in Zabbix.
+
+SLIDE 14 — Real-Time Delivery
+The real-time part of the system works through Redis and WebSocket.
+
+After Metrics Processor processes a Kafka message, it publishes a live event to Redis.
+
+The WebSocket Gateway subscribes to Redis channels like metrics:{host_id} and problems:global.
+
+When a Redis message arrives, the gateway emits events to the browser using Socket.io.
+
+The dashboard listens for events like:
+
+metric_update, host_status, problem_opened, problem_resolved, and heartbeat.
+
+This allows CPU gauges, RAM gauges, host status, and problem lists to update without refreshing the page.
+
+During testing, the end-to-end update from agent check-in to dashboard update was observed in under two seconds.
+
+SLIDE 15 — Dashboard Overview
+The dashboard is designed like an enterprise monitoring console.
+
+It uses a light theme, compact tables, status badges, and a fixed sidebar, similar to tools like Zabbix.
+
+The overview page shows total hosts, online hosts, offline hosts, warning hosts, critical hosts, and active problems.
+
+It also shows a host grid where each host card displays status, IP address, OS, last seen time, tags, and problem count.
+
+The active problems section shows current alerts and allows acknowledgement.
+
+The purpose of this page is to give an operator a quick view of infrastructure health.
+
+SLIDE 16 — Live Demonstration
+At this point in the presentation, I would move to the live demonstration.
+
+In the demo, I would show the monitoring agent running in the terminal.
+
+Then I would open the dashboard and show the host inventory.
+
+After that, I would open a host detail page and show live CPU, RAM, and disk gauges.
+
+Then I would show how an alert rule can create a problem when a metric crosses a threshold.
+
+Finally, I would show the acknowledge and resolve workflow.
+
+The goal of the demo is to prove that the system is not just UI, but a working end-to-end pipeline.
+
+SLIDE 17 — Demo: Agent Running
+This slide shows a sample metric payload sent by the agent.
+
+The actual agent sends an object containing the agent key, hostname, IP address, agent version, timestamp, metrics, and service checks.
+
+Metrics include CPU usage, RAM total and used, disk total and used, network input and output, load average, uptime, and process count.
+
+The agent also checks configured services by trying to connect to their TCP ports.
+
+For example, if PostgreSQL is running on port 5432, the agent marks it as running.
+
+If a service port does not respond, the agent marks it as stopped.
+
+The agent logs heartbeat and check-in messages in the terminal, which helps verify that it is running correctly.
+
+SLIDE 18 — Demo: Dashboard Live Update
+This slide explains what the audience should observe during the dashboard demo.
+
+When the agent sends a metric check-in, the backend processes it and sends a WebSocket update to the browser.
+
+The host detail page shows live CPU, RAM, and disk gauges.
+
+If the host status changes from online to warning or critical, the status badge updates.
+
+If an alert rule is breached, a problem appears on the Problems page.
+
+No manual page refresh is required for live updates.
+
+Historical charts are loaded separately from stored metric values, so the dashboard supports both real-time and historical views.
+
+SLIDE 19 — Key Achievement 1
+The first key achievement is simultaneous multi-host monitoring.
+
+Each monitored host has a unique agent key. This key is used to identify the host when metric data is received.
+
+Because each host has an independent metric stream, the system can show multiple hosts on the same dashboard.
+
+The host inventory page gives a combined view of all hosts.
+
+The host detail page gives a focused view of one host.
+
+This proves that the system is not limited to one machine. It can monitor multiple machines using the same pipeline.
+
+SLIDE 20 — Key Achievement 2
+The second key achievement is the alert engine.
+
+I validated that when CPU usage crosses a configured threshold, the system creates a problem.
+
+This problem is stored in PostgreSQL and shown on the dashboard.
+
+The user can acknowledge the problem to indicate that it has been seen.
+
+When the metric value returns below the threshold, the system resolves the problem automatically.
+
+This behavior is important because monitoring systems should not only collect data. They should also convert abnormal data into actionable problems.
+
+SLIDE 21 — Technical Challenges
+There were several technical challenges during implementation.
+
+One challenge was module compatibility. Some npm packages are ESM-only in newer versions, while the backend services were configured for CommonJS TypeScript. This required careful package selection, such as pinning uuid to version 8.3.2.
+
+Another challenge was Kafka restart behavior. Kafka stores topic state in Zookeeper, so restarting during development can create topic-exists errors. I handled topic creation in an idempotent way.
+
+The third challenge was cross-platform metric collection. Windows and Linux expose disk and network information differently, so the agent needed separate logic for each operating system.
+
+These issues were useful because they reflected real engineering problems, not just coding syntax problems.
+
+SLIDE 22 — Engineering Decisions
+This slide explains important design choices.
+
+Kafka was chosen instead of direct database writes because ingestion and processing should be separated.
+
+ClickHouse was chosen in addition to PostgreSQL because historical metric queries can become heavy in monitoring systems.
+
+Fastify was used for APIs because it is lightweight and suitable for service-based backend design.
+
+Agent-based monitoring was chosen because it gives direct access to OS-level metrics.
+
+Redis PubSub was used instead of dashboard polling because it allows live updates with lower latency.
+
+Each decision was made based on the role of that component in the monitoring system.
+
+SLIDE 23 — Results Achieved
+The final system achieved the main technical goals.
+
+The agent successfully collected metrics on Windows and Linux.
+
+The full metric pipeline worked from agent check-in to Kafka, Metrics Processor, PostgreSQL, ClickHouse, Redis, WebSocket, and dashboard.
+
+The dashboard updated live without page refresh.
+
+The alert engine opened problems when thresholds were breached and resolved them when values cleared.
+
+Multiple hosts could be monitored with independent streams.
+
+The observed source-to-dashboard update time during local testing was under two seconds.
+
+SLIDE 24 — Comparison with Zabbix
+This project is inspired by Zabbix, but it is not meant to replace Zabbix.
+
+Zabbix is a mature production monitoring system with many years of development.
+
+My platform implements core monitoring ideas such as host monitoring, agent-based metrics, alert rules, problems, acknowledgements, historical charts, APIs, and authentication.
+
+However, features like SNMP monitoring, auto-discovery, templates, and large-scale production tuning are still future work.
+
+So the comparison should be understood honestly: this project is a working prototype that demonstrates Zabbix-style architecture and workflows.
+
+SLIDE 25 — Limitations
+The current system has some limitations.
+
+Formal production-scale load testing was not performed.
+
+SNMP-based agentless monitoring is not implemented yet.
+
+Email and SMS notification channels are not integrated. Webhook support is the initial direction.
+
+Kubernetes deployment is not configured.
+
+Network auto-discovery and SSL certificate monitoring are also not implemented.
+
+These are not failures. They are scope boundaries because the internship duration was limited.
+
+The important point is that the core architecture is ready for these extensions.
+
+SLIDE 26 — Future Roadmap
+The future roadmap includes five main improvements.
+
+First, load testing should be performed to measure how many hosts and metrics the system can handle.
+
+Second, SNMP support should be added for routers, switches, and network devices.
+
+Third, email and SMS notifications should be integrated for alert delivery.
+
+Fourth, Kubernetes deployment files should be added for container orchestration.
+
+Fifth, auto-discovery should be implemented so that hosts can be discovered automatically through ping sweep or SNMP scanning.
+
+These improvements would move the project closer to a larger operational monitoring platform.
+
+SLIDE 27 — Lessons Learned
+This project helped me understand distributed systems more practically.
+
+I learned that monitoring platforms are not only dashboards. They require correct data collection, identity, storage, alerting, and live delivery.
+
+I also learned that different types of data need different storage strategies. Relational state fits well in PostgreSQL, while historical metrics fit better in ClickHouse.
+
+Another lesson was that cross-platform agents require careful handling because Windows and Linux expose system information differently.
+
+Most importantly, I learned that architecture can evolve. Phase 1 was useful because it provided the foundation for Phase 2.
+
+SLIDE 28 — Conclusion + Thank You
+To conclude, I built a working infrastructure monitoring platform from scratch.
+
+The platform includes a monitoring agent, Agent API, Kafka pipeline, Metrics Processor, PostgreSQL and ClickHouse storage, alert engine, Redis PubSub, WebSocket Gateway, and a Next.js dashboard.
+
+The system validates real-time metric collection, live dashboard updates, threshold-based alerting, and problem management.
+
+It is a prototype, but it uses production-grade architectural patterns.
+
+Thank you for your time. I would be happy to answer your questions.
+
+How to Explain the Project in Simple Terms
+1. Very Simple Explanation
+You can say:
+
+I made a website and backend system that monitors computers and servers in real time. A small agent runs on each machine and collects CPU, RAM, disk, network, uptime, and service data. This data goes through backend services and appears live on the dashboard. If any value crosses a threshold, the system creates an alert problem.
+
+2. Slightly Technical Explanation
+The system is similar to Zabbix. It has a monitoring agent, backend APIs, Kafka message queue, metric processor, databases, alert engine, WebSocket gateway, and dashboard. The agent sends metrics every 30 seconds. The backend stores the data, checks alert rules, and pushes live updates to the browser.
+
+3. Architecture Explanation in Simple Terms
+Use this:
+
+text
+
+Agent collects data
+      ↓
+Agent API receives it
+      ↓
+Kafka queues it
+      ↓
+Processor stores and checks alerts
+      ↓
+Databases save it
+      ↓
+Redis sends live event
+      ↓
+WebSocket sends to browser
+      ↓
+Dashboard shows live status
+Now explain each part:
+
+Agent
+The agent is a small script running on the monitored machine. It collects system health data.
+
+Agent API
+Agent API is the entry point. It receives data from the agent and checks whether the agent key is valid.
+
+Kafka
+Kafka is like a buffer or queue. It stores incoming metric messages until the processor consumes them.
+
+Metrics Processor
+Metrics Processor is the main backend worker. It stores metrics, checks alert rules, updates host status, and publishes live updates.
+
+PostgreSQL
+PostgreSQL stores structured data like users, hosts, alert rules, problems, sessions, and services.
+
+ClickHouse
+ClickHouse stores large amounts of historical metric data for charts and reports.
+
+Redis
+Redis is used to send live update messages inside the system.
+
+WebSocket Gateway
+WebSocket Gateway sends those live updates to the browser.
+
+Dashboard
+The dashboard is where the user sees hosts, metrics, problems, alerts, reports, and admin pages.
+
+Best 60-Second Introduction
+Use this if your mentor asks, “Tell me about your project.”
+
+Sir, my project is a real-time infrastructure monitoring platform inspired by Zabbix. It monitors machines using a lightweight Node.js agent that runs on each host. The agent collects CPU, RAM, disk, network, uptime, process, and service metrics and sends them every 30 seconds to the backend.
+
+The backend is built using microservices. Agent API receives the data, Kafka queues it, Metrics Processor stores it in PostgreSQL and ClickHouse, evaluates alert rules, and publishes live updates through Redis. WebSocket Gateway sends these updates to the Next.js dashboard.
+
+The dashboard shows host inventory, live metric gauges, historical charts, latest data, active problems, alert rules, agents, reports, users, and audit logs. If a metric crosses a threshold, the system opens a problem, and when the metric becomes normal again, it auto-resolves it.
+
+Best 2-Minute Explanation
+Use this for a more detailed answer.
+
+The project started as a universal event ingestion system and later evolved into a full infrastructure monitoring platform. In Phase 1, I built the distributed system foundation: ingestion services, Kafka pipeline, parsing, PostgreSQL storage, authentication, WebSocket gateway, and dashboard.
+
+In Phase 2, I redesigned the project into a Zabbix-style monitoring system. I created a monitoring agent that runs on Windows and Linux and collects CPU, RAM, disk, network, uptime, process, and service metrics. This agent sends heartbeats every 10 seconds and full metric check-ins every 30 seconds.
+
+The backend has multiple services. Agent API receives and validates agent data. Kafka decouples ingestion from processing. Metrics Processor consumes messages, stores metric values in PostgreSQL and ClickHouse, evaluates alert rules, updates host status, and publishes live events to Redis. WebSocket Gateway sends those events to the dashboard.
+
+The dashboard is built in Next.js and provides pages for overview, hosts, host details, latest data, problems, alert rules, alert history, maintenance, agents, reports, users, audit logs, settings, and profile management.
+
+The main validated result is that metric data travels from the agent to the dashboard in under two seconds, and alert rules correctly open and auto-resolve problems.
+
+How to Explain Each Page Quickly
+Login Page
+This page authenticates users. It uses JWT httpOnly cookies and bcrypt password hashing.
+
+Dashboard Page
+This is the main monitoring overview. It shows total hosts, online/offline status, active problems, and host health cards.
+
+Hosts Page
+This page manages all monitored hosts. An admin can add, delete, search, and filter hosts.
+
+Host Detail Page
+This page shows one host in detail, including live CPU/RAM/Disk gauges, metric history charts, services, problems, and metadata.
+
+Latest Data Page
+This page shows the latest metric value for every host and metric.
+
+Problems Page
+This page shows active, acknowledged, and resolved alerts. Operators can acknowledge or resolve problems.
+
+Alert Rules Page
+This page allows users to create threshold rules, such as CPU greater than 90 percent means critical.
+
+Alert History Page
+This page shows previous resolved problems and their duration.
+
+Maintenance Page
+This page allows scheduling maintenance windows so planned downtime does not create false alerts.
+
+Agents Page
+This page shows agent keys, install commands, heartbeat status, and agent version.
+
+Availability Report Page
+This page calculates host availability percentage based on metric samples.
+
+System Report Page
+This page shows internal platform statistics such as database size, row counts, metric counts, and problem statistics.
+
+Admin Users Page
+This page lets an admin create, edit, disable, delete, and reset passwords for users.
+
+Audit Logs Page
+This page records administrative actions for traceability.
+
+Settings Page
+This page contains platform-level configuration sections.
+
+Profile Page
+This page shows the current user’s profile and API keys.
+
+Host Groups Page
+This page groups hosts logically, such as Linux Servers or Database Servers.
+
+Discovery Page
+This is a future enhancement page for SNMP discovery, ping sweep, topology, and auto-registration.
+
+How to Explain Testing
+Say:
+
+I tested the project end to end, not only page by page. First, I verified that Docker infrastructure started correctly. Then I verified PostgreSQL and ClickHouse tables. After that, I started each service and checked their health endpoints. Then I registered a host, ran the monitoring agent, verified metric rows in PostgreSQL and ClickHouse, and checked that the dashboard updated live. Finally, I created alert rules and verified that problems opened and resolved correctly.
+
+Testing flow:
+
+text
+
+Docker up
+  ↓
+Database schema check
+  ↓
+Service health check
+  ↓
+Login test
+  ↓
+Host registration
+  ↓
+Agent run
+  ↓
+Metric storage check
+  ↓
+Dashboard live update
+  ↓
+Alert rule validation
+How to Explain Why You Used Kafka
+Kafka is used so that data ingestion and processing are separated. If the processor or database is temporarily slow, Agent API can still accept metric payloads and place them in Kafka. This makes the architecture more reliable than directly writing every check-in to the database from the API.
+
+How to Explain Why You Used ClickHouse
+PostgreSQL is good for users, hosts, alert rules, and problems. But monitoring systems generate many time-series metric rows. ClickHouse is better suited for analytical queries on large metric histories. That is why I used PostgreSQL for operational state and ClickHouse for time-series metrics.
+
+How to Explain Why You Used Redis and WebSocket
+Redis is used for internal live event publishing. WebSocket Gateway listens to Redis messages and sends them to the browser. This allows the dashboard to update live without refreshing or polling the database repeatedly.
+
+How to Explain Alert Engine
+Alert rules define thresholds for metrics. For example, CPU usage greater than 75 percent is warning and greater than 90 percent is critical. When a metric crosses the threshold, the system opens a problem. If the metric becomes normal again, the system resolves the problem automatically. Users can also acknowledge problems.
+
+How to Explain Agent
+The agent is a small Node.js script with no external dependencies. It uses built-in OS functions and system commands to collect metrics. It sends heartbeat messages every 10 seconds and full check-ins every 30 seconds. This agent-based approach gives accurate OS-level data.
+
+How to Explain Phase 1 and Phase 2
+Say:
+
+Phase 1 was the foundation phase. I built a universal event ingestion system to prove the distributed pipeline. Phase 2 was the specialization phase. I converted the architecture into a monitoring system with hosts, metrics, alert rules, problems, and dashboard pages.
+
+Do not say:
+
+I changed the project because Phase 1 failed.
+
+Say:
+
+Phase 1 validated the pipeline, and Phase 2 applied it to infrastructure monitoring.
+
+Most Important Points to Emphasize
+It is not just a frontend website.
+It is a distributed system.
+It has a real monitoring agent.
+It uses Kafka for asynchronous processing.
+It uses PostgreSQL and ClickHouse for different data needs.
+It supports real-time dashboard updates.
+It has an alert engine.
+It follows Zabbix-style monitoring concepts.
+It was developed in two phases.
+It has clear future enhancement scope.
+If Mentor Asks: “What exactly did you build?”
+Answer:
+
+I built the complete prototype: monitoring agent, Agent API, Kafka processing pipeline, Metrics Processor, PostgreSQL schema, ClickHouse schema, Redis/WebSocket live delivery, authentication system, alert rule engine, problem workflow, and Next.js dashboard.
+
+If Mentor Asks: “Is it production ready?”
+Answer:
+
+It uses production-grade architectural patterns, but it is still a prototype. It needs formal load testing, deployment hardening, notification integration, and security review before production use.
+
+If Mentor Asks: “What is the main learning?”
+Answer:
+
+The main learning was how distributed monitoring systems work end to end. I learned how data collection, queues, processors, databases, alert rules, and dashboards must work together to provide real-time observability.
+
+Closing Statement
+Use this at the end:
+
+Overall, this project helped me understand monitoring systems from both backend and operational perspectives. I was able to build a working prototype that collects real host metrics, processes them through a distributed pipeline, stores them, evaluates alerts, and displays live infrastructure health on a professional dashboard.
+
+
+No file chosen
