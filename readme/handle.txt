@@ -1,0 +1,352 @@
+TROUBLESHOOTING GUIDE: LOGIN FAILED + KAFKA EXITED ON MENTOR SYSTEM
+Project: event-monitoring
+
+Use this file when the project works on your system but login fails or Kafka exits on mentor's system.
+
+============================================================
+1. GO TO PROJECT ROOT
+============================================================
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring
+
+Use the actual cloned project path.
+
+Example:
+
+cd C:\Users\KIIT0001\Downloads\intern\event-monitoring
+
+============================================================
+2. PULL LATEST CODE
+============================================================
+
+git pull
+
+============================================================
+3. START / RESTART DOCKER INFRASTRUCTURE
+============================================================
+
+docker compose -f infra/docker-compose.yml down
+docker compose -f infra/docker-compose.yml up -d
+
+docker compose -f infra/docker-compose.yml ps
+
+Expected running containers:
+
+postgres
+redis
+clickhouse
+zookeeper
+kafka
+mosquitto
+
+If Kafka is exited, continue to Section 10.
+
+============================================================
+4. VERIFY POSTGRES TABLES
+============================================================
+
+docker compose -f infra/docker-compose.yml exec -T postgres psql -U platform -d platform -c "\dt"
+
+Expected tables include:
+
+users
+hosts
+host_groups
+metric_values
+alert_rules
+problems
+sessions
+api_keys
+
+If tables are missing, reset volumes:
+
+docker compose -f infra/docker-compose.yml down -v
+docker compose -f infra/docker-compose.yml up -d
+
+Then check tables again.
+
+============================================================
+5. START AUTH API CORRECTLY
+============================================================
+
+Open a new PowerShell terminal:
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\services\auth-api
+
+$env:PG_URL="postgresql://platform:platform@localhost:5432/platform"
+$env:CLICKHOUSE_URL="http://localhost:8123"
+$env:CLICKHOUSE_DATABASE="platform"
+$env:JWT_SECRET="dev-local-jwt-secret-change"
+$env:COOKIE_SECRET="dev-local-cookie-secret-change"
+$env:COOKIE_SECURE="false"
+$env:DASHBOARD_ORIGIN="http://localhost:3000"
+$env:AUTH_API_PORT="4002"
+
+npm install
+npm run dev
+
+============================================================
+6. VERIFY AUTH API HEALTH
+============================================================
+
+In another PowerShell terminal:
+
+Invoke-RestMethod http://localhost:4002/health
+
+Expected:
+
+ok      : True
+service : auth-api
+
+If this fails, login will not work.
+
+Check if another process is using port 4002:
+
+netstat -ano | findstr ":4002"
+
+tasklist /FI "PID eq YOUR_PID"
+
+If the process is not your Node auth-api, stop it:
+
+Stop-Process -Id YOUR_PID -Force
+
+Then restart auth-api.
+
+============================================================
+7. TEST LOGIN DIRECTLY FROM POWERSHELL
+============================================================
+
+$body = @{
+  email = "admin@platform.local"
+  password = "Admin@123"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:4002/auth/login `
+  -ContentType "application/json" `
+  -Body $body `
+  -SessionVariable session
+
+If this succeeds, backend login is working.
+
+If this gives 404:
+- Wrong service is running on port 4002, or auth-api did not start correctly.
+- Restart auth-api from services\auth-api.
+
+If this gives 401:
+- Admin password hash is wrong. Go to Section 8.
+
+If this gives 500:
+- PostgreSQL connection or schema issue. Check auth-api terminal logs.
+
+============================================================
+8. FIX ADMIN PASSWORD IF LOGIN GIVES 401
+============================================================
+
+From project root:
+
+cd services\auth-api
+$hash = node -e "const bcrypt=require('bcryptjs'); bcrypt.hash('Admin@123',12).then(h=>console.log(h))"
+cd ..\..
+
+docker compose -f infra/docker-compose.yml exec -T postgres psql -U platform -d platform -c "UPDATE users SET password_hash='$hash', status='active', role='admin' WHERE email='admin@platform.local';"
+
+Verify:
+
+docker compose -f infra/docker-compose.yml exec -T postgres psql -U platform -d platform -c "SELECT email, role, status FROM users WHERE email='admin@platform.local';"
+
+Expected:
+
+admin@platform.local | admin | active
+
+Now test login again using Section 7.
+
+============================================================
+9. START DASHBOARD CORRECTLY
+============================================================
+
+Open a new PowerShell terminal:
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\apps\dashboard
+
+$env:NEXT_PUBLIC_API_URL="http://localhost:4002"
+$env:NEXT_PUBLIC_WS_URL="http://localhost:4001"
+$env:NEXT_PUBLIC_AGENT_URL="http://localhost:4000"
+
+npm install
+npm run dev
+
+Open browser:
+
+http://localhost:3000/login
+
+Login:
+
+Email: admin@platform.local
+Password: Admin@123
+
+Hard refresh if needed:
+
+Ctrl + Shift + R
+
+NOTE:
+GET /auth/me returning 401 before login is normal.
+Only POST /auth/login must succeed.
+
+============================================================
+10. FIX KAFKA EXITED
+============================================================
+
+Check Kafka logs:
+
+docker compose -f infra/docker-compose.yml logs kafka --tail=200
+
+Check if port 9092 is already used:
+
+netstat -ano | findstr ":9092"
+
+If another process/container uses 9092, find it:
+
+tasklist /FI "PID eq YOUR_PID"
+
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+
+Stop only the conflicting container:
+
+docker stop CONTAINER_NAME
+
+Restart Zookeeper and Kafka:
+
+docker compose -f infra/docker-compose.yml stop kafka
+docker compose -f infra/docker-compose.yml stop zookeeper
+docker compose -f infra/docker-compose.yml up -d zookeeper
+
+Wait 20 seconds, then:
+
+docker compose -f infra/docker-compose.yml up -d kafka
+
+docker compose -f infra/docker-compose.yml ps
+
+If Kafka still exits, reset infra completely:
+
+docker compose -f infra/docker-compose.yml down -v
+docker compose -f infra/docker-compose.yml up -d
+
+docker compose -f infra/docker-compose.yml ps
+
+============================================================
+11. START REMAINING SERVICES AFTER LOGIN WORKS
+============================================================
+
+Terminal: Agent API
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\services\agent-api
+
+$env:PG_URL="postgresql://platform:platform@localhost:5432/platform"
+$env:REDIS_URL="redis://localhost:6379"
+$env:KAFKA_BROKERS="localhost:9092"
+$env:RAW_METRICS_TOPIC="raw-metrics"
+$env:DASHBOARD_ORIGIN="http://localhost:3000"
+$env:AGENT_API_PORT="4000"
+
+npm install
+npm run dev
+
+Terminal: Metrics Processor
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\services\metrics-processor
+
+$env:PG_URL="postgresql://platform:platform@localhost:5432/platform"
+$env:REDIS_URL="redis://localhost:6379"
+$env:KAFKA_BROKERS="localhost:9092"
+$env:RAW_METRICS_TOPIC="raw-metrics"
+$env:CLICKHOUSE_URL="http://localhost:8123"
+$env:CLICKHOUSE_DATABASE="platform"
+
+npm install
+npm run dev
+
+Terminal: WebSocket Gateway
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\services\ws-gateway
+
+$env:REDIS_URL="redis://localhost:6379"
+$env:DASHBOARD_ORIGIN="http://localhost:3000"
+$env:WS_GATEWAY_PORT="4001"
+
+npm install
+npm run dev
+
+============================================================
+12. REGISTER HOST AND RUN AGENT FOR DEMO
+============================================================
+
+Register host:
+
+$body = @{
+  hostname = $env:COMPUTERNAME
+  ip = "127.0.0.1"
+  os_type = "Windows"
+  agent_version = "1.0.0"
+} | ConvertTo-Json
+
+$r = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:4000/agent/register `
+  -ContentType "application/json" `
+  -Body $body
+
+$r.agent_key
+
+Run agent:
+
+cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\agent
+
+node index.js --server http://localhost:4000 --key $r.agent_key
+
+Expected logs:
+
+heartbeat sent
+checkin sent cpu=...
+
+============================================================
+13. VERIFY METRICS
+============================================================
+
+PostgreSQL:
+
+docker compose -f infra/docker-compose.yml exec -T postgres psql -U platform -d platform -c "SELECT metric_name,value,unit,collected_at FROM metric_values ORDER BY collected_at DESC LIMIT 10;"
+
+ClickHouse:
+
+docker compose -f infra/docker-compose.yml exec -T clickhouse clickhouse-client --query "SELECT hostname, metric_name, value, collected_at FROM platform.metrics ORDER BY collected_at DESC LIMIT 10"
+
+============================================================
+14. MOST IMPORTANT POINTS
+============================================================
+
+Login needs:
+
+- PostgreSQL running
+- auth-api running on port 4002
+- dashboard started with NEXT_PUBLIC_API_URL=http://localhost:4002
+- valid admin user in database
+
+Kafka is NOT required for login.
+Kafka is required for:
+
+- agent check-in
+- metrics processor
+- live metric pipeline
+
+If login fails, fix auth-api/PostgreSQL first.
+If Kafka exits, fix Docker/Kafka after login works.
+
+============================================================
+15. WHAT TO TELL MENTOR
+============================================================
+
+If asked, say:
+
+The issue was environment-specific. On the mentor system, either auth-api was not running on the expected port or the fresh PostgreSQL volume needed the admin password hash to be repaired. Kafka exiting is separate from login and affects the metric pipeline, not authentication. I first verified auth-api health and direct login, then fixed the database password if needed, and finally restarted Kafka by checking Docker logs and port conflicts.
