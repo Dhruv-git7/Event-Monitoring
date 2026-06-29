@@ -112,7 +112,7 @@ export default function LoginPage() {
 
       <section style={{ padding: 44, display: 'flex', alignItems: 'center' }}>
         <div style={{ maxWidth: 680 }}>
-          <h2 style={{ fontSize: 30, lineHeight: 1.2, margin: '0 0 12px', color: '#1a1a2e' }}>Zabbix-style infrastructure visibility for enterprise teams</h2>
+          <h2 style={{ fontSize: 30, lineHeight: 1.2, margin: '0 0 12px', color: '#1a1a2e' }}>Infrastructure visibility</h2>
           <p style={{ color: '#5f6b7c', fontSize: 15, lineHeight: 1.7, marginBottom: 22 }}>
             Monitor hosts, agents, services, metrics, alert rules, problems, maintenance windows and availability reports from one compact operations console.
           </p>
