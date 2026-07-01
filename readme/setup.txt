@@ -390,7 +390,7 @@ In another terminal:
 
 cd C:\Users\<MENTOR_USER>\Desktop\event-monitoring\agent
 
-node index.js --server http://localhost:4000 --key YOUR_AGENT_KEY
+node index.js --server http://localhost:4000 --key ak_5b515ca6e75b4711946620d549ae13f9_735ea933f62f4b59
 
 Replace YOUR_AGENT_KEY with the actual key returned.
 
@@ -640,3 +640,142 @@ dist/
 .env
 
 This avoids adding node_modules or local secrets to Git.
+
+
+
+Allow Windows Firewall Ports on Your Laptop
+On your laptop, open PowerShell as Administrator and run:
+
+PowerShell
+
+New-NetFirewallRule -DisplayName "Monitoring Dashboard 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+New-NetFirewallRule -DisplayName "Monitoring Agent API 4000" -Direction Inbound -Protocol TCP -LocalPort 4000 -Action Allow
+New-NetFirewallRule -DisplayName "Monitoring WebSocket 4001" -Direction Inbound -Protocol TCP -LocalPort 4001 -Action Allow
+New-NetFirewallRule -DisplayName "Monitoring Auth API 4002" -Direction Inbound -Protocol TCP -LocalPort 4002 -Action Allow
+This allows other LAN computers to connect to your backend.
+
+11. Step 4: Test from Mentor Computer
+On mentor computer, open PowerShell and test:
+
+PowerShell
+
+Invoke-RestMethod http://192.168.1.10:4000/health
+Expected output should show something like:
+
+text
+
+ok
+Also test Auth API:
+
+PowerShell
+
+Invoke-RestMethod http://192.168.1.10:4002/health
+Open browser on mentor PC:
+
+text
+
+http://192.168.1.10:3000
+If dashboard opens, LAN connection is working.
+
+12. Step 5: Register Mentor Computer as a Host
+On mentor computer, run:
+
+PowerShell
+
+$body = @{
+  hostname = $env:COMPUTERNAME
+  ip = "192.168.1.20"
+  os_type = "Windows"
+  agent_version = "1.0.0"
+} | ConvertTo-Json
+
+$r = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://192.168.1.10:4000/agent/register `
+  -ContentType "application/json" `
+  -Body $body
+
+$r
+But replace:
+
+text
+
+192.168.1.10
+with your laptop IP.
+
+For mentor computer IP, run on mentor PC:
+
+PowerShell
+
+ipconfig
+Use its IPv4 address in:
+
+PowerShell
+
+ip = "MENTOR_PC_IP"
+After registration, it will return an agent key.
+
+Example:
+
+text
+
+agent_key: abc123...
+Copy that key.
+
+13. Step 6: Run Agent on Mentor Computer
+Copy the agent folder to mentor computer.
+
+Example folder:
+
+text
+
+C:\Users\<MENTOR_USER>\Desktop\agent
+Then run:
+
+PowerShell
+
+cd C:\Users\<MENTOR_USER>\Desktop\agent
+
+npm install
+Now run agent:
+
+PowerShell
+
+node index.js --server http://192.168.1.10:4000 --key YOUR_AGENT_KEY
+Replace:
+
+text
+
+192.168.1.10
+with your backend laptop IP.
+
+Replace:
+
+text
+
+YOUR_AGENT_KEY
+with the key received during registration.
+
+Now mentor computer should appear in your dashboard as a monitored host.
+
+14. If You Want to Add Multiple LAN Computers
+Repeat these steps on every computer:
+
+text
+
+1. Make sure computer is on same LAN.
+2. Register the host with Agent API.
+3. Copy the agent folder.
+4. Install Node.js if needed.
+5. Run npm install.
+6. Run agent with backend LAN IP and agent key.
+For each computer:
+
+PowerShell
+
+node index.js --server http://YOUR_BACKEND_LAN_IP:4000 --key THAT_HOST_AGENT_KEY
+Example:
+
+PowerShell
+
+node index.js --server http://192.168.1.10:4000 --key abc123
